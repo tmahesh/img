@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/containerd/containerd/content"
@@ -69,6 +70,21 @@ func (c *Client) Unpack(ctx context.Context, image, dest string) error {
 		}); err != nil {
 			return fmt.Errorf("extracting tar for %s to directory %s failed: %v", desc.Digest.String(), dest, err)
 		}
+	}
+
+	//fetch the runtime conf of the image into dest(rootfs)
+	configDesc, err := images.Config(ctx, opt.ContentStore, img.Target, platforms.Default())
+	if err != nil {
+		return err
+	}
+	p, err := content.ReadBlob(ctx, opt.ContentStore, configDesc)
+	if err != nil {
+		return err
+	}
+
+	logrus.Debugf("runConfig: %s", p)
+	if err := ioutil.WriteFile(dest+"/runtime.conf", p, os.ModePerm); err != nil {
+		return err
 	}
 
 	return nil
